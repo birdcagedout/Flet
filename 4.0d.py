@@ -7,7 +7,7 @@ import logging
 import ctypes
 import pickle
 from threading import *
-import win32gui, win32con
+import win32gui
 from pynput import mouse as pynputMouse
 from pynput import keyboard as pynputKeyboard
 
@@ -281,7 +281,7 @@ def main(page: ft.Page):
 
 	# 설정 파일이 있으면 로딩
 	if os.path.exists(SETTING_FILE) == True:
-		with open(SETTING_FILE, "rb") as f:
+		with open(SETTING_FILE, "rb", encoding='cp949') as f:
 			setting = pickle.load(f)
 
 			# 사유/설정 자동저장값이 True일 때만 설정파일 반영
@@ -559,7 +559,7 @@ def main(page: ft.Page):
 			if os.path.isdir(HOME_DIR) == False:
 				os.mkdir(HOME_DIR)
 			# 파일 쓰기
-			with open(SETTING_FILE, "wb") as f:
+			with open(SETTING_FILE, "wb", encoding='cp949') as f:
 				setting = {'setting_autosave': setting_autosave, 
 							'setting_minimize': setting_minimize, 
 							'setting_transparency': setting_transparency,
