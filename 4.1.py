@@ -12,7 +12,7 @@ from pynput import mouse as pynputMouse
 from pynput import keyboard as pynputKeyboard
 
 
-VER = "4.0"
+VER = "4.1"
 
 
 WIN_WIDTH = 350
@@ -115,8 +115,9 @@ class Timer(ft.UserControl):
 		self.running = False
 
 	def update_timer(self):
-		# 가로줄(높이 = 랜덤 10 ~ 100)
+		# 가로줄 높이 배정(높이 = 랜덤 10 ~ 90)
 		while self.vertical_space_left > 0:
+
 			h = random.randint(5, 15) * random.randint(2, 4)		# random.randint(a, b) includes both ends
 			if (self.vertical_space_left - h) >= 0:
 				self.vertical_space_left -= h
@@ -124,6 +125,14 @@ class Timer(ft.UserControl):
 				h = self.vertical_space_left
 				self.vertical_space_left = 0
 			self.heights.append(h)
+			
+			# 가로줄의 개수가 color 개수보다 크면 처음부터 다시 가로줄 배정
+			if self.vertical_space_left == 0 and len(self.heights) > len(self.colors):
+				self.vertical_space_left = 381
+				self.heights.clear()
+				continue
+		
+		# 가로줄 개수만큼 컬러 배정
 		c = random.sample(self.colors, len(self.heights))
 
 		# 화면에 추가
@@ -151,14 +160,16 @@ class Timer(ft.UserControl):
 
 class WatcherThread(Thread):
 	# 초기화
-	def __init__(self, reason="", delay=0.3):
+	def __init__(self, reason="", delay=0.35):
 		super(WatcherThread, self).__init__(daemon=True)
 		self.reason = reason
 		self.delay = delay
 		self.m = pynputMouse.Controller()
 		self.k = pynputKeyboard.Controller()
 
+	# 쓰레드 시작
 	def run(self):
+
 		# 이미 팝업창이 떠 있는 상태에서 실행된 경우 ==> 최상위 윈도가 현재 "귀찮다"이므로 팝업창 감지 안됨
 		# 따라서 쓰레드 실행시 팝업창이 있다면 최상위로 올려주어 감지
 		def winEnumHandler(hWnd, ctx):
@@ -171,24 +182,12 @@ class WatcherThread(Thread):
 					win32gui.SetForegroundWindow(hWnd)
 		win32gui.EnumWindows(winEnumHandler, None)
 
-
-		# win32gui.GetWindowRect() 함수에 문제가 있어서 별도로 만들어 주었다.
-		# 출처: https://soma0sd.tistory.com/124
-		def get_window_rect(hwnd):
-			ctypes.windll.user32.SetProcessDPIAware()				# 실행시 맨처음 한번만 실행하면 되지 않을까? 싶은데...
-			f = ctypes.windll.dwmapi.DwmGetWindowAttribute
-			rect = ctypes.wintypes.RECT()
-			DWMWA_EXTENDED_FRAME_BOUNDS = 9
-			f(ctypes.wintypes.HWND(hwnd), ctypes.wintypes.DWORD(DWMWA_EXTENDED_FRAME_BOUNDS), ctypes.byref(rect), ctypes.sizeof(rect))
-			return rect.left, rect.top, rect.right, rect.bottom
-
 		while True:
 			# 팝업창 Title 찾기
 			try:
 				hWnd = win32gui.GetForegroundWindow()
 				title = win32gui.GetWindowText(hWnd)
-				#rect = win32gui.GetWindowRect(hWnd)
-				rect = get_window_rect(hWnd)
+				rect = win32gui.GetWindowRect(hWnd)
 				x = rect[0]
 				y = rect[1]
 				w = rect[2] - x
@@ -201,12 +200,20 @@ class WatcherThread(Thread):
 			if (title != "조회 사유 입력") and (title != "개인정보 공개 열람사유입력"):
 				time.sleep(0.1)
 				continue
-				
-			# 사유 입력창 클릭
-			#ctypes.windll.user32.BlockInput(True)				# 마우스/키보드 입력 차단
 
-			# 둘 중 하나는 발견한 경우: 너무 빠르니까 작동오류 발생 ==> 지연시간 추가
-			time.sleep(self.delay)
+			# 조회 사유 입력창이 맞지만, 아직 창이 만들어지기도 전에 detect된 경우 ==> 기다려준다
+			if w < 100:
+				print(f"[창이 너무 작습니다] x={x}, y={y}, w={w}, h={h}")
+				time.sleep(0.1)
+				continue
+				
+			# <경고: 입력장치 무력화 시작>=========================================================
+			# 조회사유 입력 시작: 클릭 + 사유 입력
+			ctypes.windll.user32.BlockInput(True)				# 마우스/키보드 입력 차단
+
+			# 둘 중 하나는 발견한 경우: 너무 빠르니까 작동오류 발생 ==> 지연시간 추가: time.sleep(self.delay)
+			# BUT 창이 제대로 만들어진 경우(w=386, h=246) 굳이 기다릴 필요가 없지만 ==> 다이얼로그에 Edit Control이 정상 작동할 수 있도록 0.1초만 기다림
+			time.sleep(0.1)
 
 			(xPos, yPos) = self.m.position
 			self.m.position = (x + int(w/2), y + int(h/2))
@@ -217,16 +224,17 @@ class WatcherThread(Thread):
 			self.k.release(pynputKeyboard.Key.enter)
 			self.m.position = (xPos, yPos)
 			ctypes.windll.user32.BlockInput(False)				# 마우스/키보드 입력 차단 해제
-
+			# 조회사유 입력 끝
+			# <경고: 입력장치 무력화 끝>=========================================================
 			
+
 			###############################################################################
-			# 창이 닫히지 않았는지 확인 ==> 닫히지 않았다면 키보드 입력에 문제 발생한 것
+			# 창이 닫히지 않았는지 확인 ==> 닫히지 않았다면 문제 발생한 것
 			time.sleep(1)
 			try:
 				hWnd = win32gui.GetForegroundWindow()
 				title = win32gui.GetWindowText(hWnd)
-				#rect = win32gui.GetWindowRect(hWnd)
-				rect = get_window_rect(hWnd)
+				rect = win32gui.GetWindowRect(hWnd)
 				x2 = rect[0]
 				y2 = rect[1]
 				w2 = rect[2] - x2
@@ -244,7 +252,7 @@ class WatcherThread(Thread):
 				file_handler.setFormatter(formatter)
 				logger.addHandler(file_handler)
 				logger.debug(f"[에러] 창 안닫힘: x={x}, y={y}, w={w}, h={h} ==> x2={x2}, y2={y2}, w2={w2}, h2={h2}\n")
-			#  확인 끝
+			# 확인 끝
 			###############################################################################
 
 			time.sleep(1)
@@ -435,41 +443,13 @@ def main(page: ft.Page):
 		preset_reasons[5] = e.control.value.strip()
 		#print(preset_reasons)
 
+
 	# Textfield에서 Enter칠 때 이벤드 핸들러
 	#def textfield_enter(e: ft.ControlEvent):
 	#	start_btn( r4_container.content.contol)
 
-	
-	# Textfield에서 포커스 벗어날 때 이벤트 핸들러
-	# def textfield_unfocused(e: ft.ControlEvent):
-	# 	# 배너 닫기 + Textfield에 포커스
-	# 	def banner_close(e):
-	# 		page.banner.open = False
-	# 		page.update()
-	# 		r3_container.content.focus()
-
-	# 	# 입력한 사유가 (공백제외)4글자보다 짧으면 ==> 배너 경고 + 다시 포커스
-	# 	if len(e.control.value.strip()) < 4:
-	# 		page.banner = ft.Banner(
-	# 			bgcolor=ft.colors.AMBER_200,
-	# 			leading=ft.Icon(ft.icons.WARNING_ROUNDED, color=ft.colors.AMBER_600, size=40),
-	# 			leading_padding=10,
-	# 			content=ft.Text("조회사유는 4글자 이상이어야 합니다.\n다시 입력해주세요.", color=ft.colors.BLACK),
-	# 			content_padding=ft.padding.only(left=0, top=10, right=10, bottom=-20),
-	# 			actions=[
-	# 				#ft.TextButton("Retry", on_click=banner_close),
-	# 				#ft.TextButton("Ignore", on_click=banner_close),
-	# 				ft.TextButton("확인", on_click=banner_close),
-	# 			],
-	# 			force_actions_below=True
-	# 		)
-	# 		page.appbar
-	# 		page.banner.open = True
-	# 		page.update()
 
 	#========================================================================================================
-
-	
 	# 시작 버튼 hover: in=1.1배 커짐 / out=원래대로
 	def start_btn_hover(e: ft.ControlEvent):
 		# hover in
@@ -672,51 +652,13 @@ def main(page: ft.Page):
 
 
 	# Part4. 시작 버튼 부분
-	#r4_container = ft.Container(
-	#	# content = ft.FilledButton(icon=ft.icons.PLAY_ARROW_ROUNDED, text="시작", width=250),
-	#	content = ft.Container(
-	#		content = ft.Row([
-	#			ft.Icon(ft.icons.PLAY_ARROW_ROUNDED, size=50),
-	#			ft.Text("시작   ", size=30, weight=ft.FontWeight.BOLD)],
-	#			alignment=ft.MainAxisAlignment.CENTER,
-	#			spacing = 0,
-	#		),
-	#		width = 240,
-	#		height = 70,
-	#		gradient = ft.LinearGradient(
-	#			begin = ft.alignment.top_left,
-	#			end = ft.alignment.bottom_right,
-	#			colors = [ft.colors.LIGHT_BLUE_800, ft.colors.LIGHT_GREEN_300, ft.colors.DEEP_PURPLE_300, ft.colors.PINK_ACCENT_200]
-	#		),
-	#		# border=ft.border.only(left=ft.BorderSide(width=2, color=ft.colors.AMBER)),
-	#		# border=ft.border.all(width=2, color=ft.colors.YELLOW),
-	#		border_radius=5,
-	#		ink = True,
-	#		margin = 0,
-	#		alignment= ft.alignment.center,
-			
-	#		scale=ft.transform.Scale(scale=1),
-	#		animate_scale=ft.animation.Animation(250, ft.AnimationCurve.EASE_IN_OUT_BACK),
-	#		on_click=start_btn,
-	#		on_hover=start_btn_hover,
-			
-	#		data="start",
-	#		padding=0,
-	#	),
-	#	padding = ft.padding.only(left=30, right=30),
-	#	alignment=ft.alignment.center
-	#)
-
 	r4_container = ft.Container(
-		# content = ft.FilledButton(icon=ft.icons.PLAY_ARROW_ROUNDED, text="시작", width=250),
 		content = ft.Row([
 				ft.Icon(ft.icons.ROCKET_SHARP, size=40),
 				ft.Text("시작  ", size=30, weight=ft.FontWeight.BOLD)],
 				alignment=ft.MainAxisAlignment.CENTER,
 				spacing = 0,
 			),
-		#width = 240,
-		#height = 70,
 		gradient = ft.LinearGradient(
 			begin = ft.alignment.top_left,
 			end = ft.alignment.bottom_right,
@@ -735,11 +677,10 @@ def main(page: ft.Page):
 		on_hover=start_btn_hover,
 		
 		data="start",
-		#padding = ft.padding.only(left=60, right=60),
 		alignment= ft.alignment.center,
 	)
 
-
+	# Part5. 개발자 정보 맨밑 한줄
 	r5_container = ft.Container(
 		content=ft.Text("Developed by 김재형, 2022-2023", size=12),
 		alignment=ft.alignment.center_right,
