@@ -13,7 +13,7 @@ from pynput import keyboard as pynputKeyboard
 
 
 VER_MAJOR = "4"
-VER_MINOR = "1"
+VER_MINOR = "2"
 VER = VER_MAJOR + "." + VER_MINOR
 
 
@@ -28,6 +28,9 @@ LOG_FILE = HOME_DIR + r"\sickntired.log"
 
 SUPERSPEED_DELAY = 0.1		# 작동 지연값(슈퍼스피드 모드 ON=0.1)
 NORMALSPEED_DELAY = 0.3		# 작동 지연값(슈퍼스피드 모드 OFF=0.3)
+
+DAY_NIGHT_PERIOD = 1.5		# 작동 중: 낮/밤 테마 바뀌는 주기
+DAY_NIGHT_STEP = 0.1		# 작동 중: loop에서 한번 time.sleep()하는 시간
 
 # 현재 컴퓨터의 IP 확인
 # import socket
@@ -143,16 +146,17 @@ class Timer(ft.UserControl):
 
 		# 화면에 추가
 		for i in range(len(self.heights)):
-			self.stripes.append(ft.ProgressBar(width=350, height=self.heights[i], opacity=1, rotate=ft.Rotate(angle= math.pi * (i % 2)), color=c[i], bgcolor=ft.colors.TRANSPARENT))
+			self.stripes.append(ft.ProgressBar(width=self.page.width, height=self.heights[i], opacity=1, rotate=ft.Rotate(angle= math.pi * (i % 2)), color=c[i], bgcolor=ft.colors.TRANSPARENT))
 			self.page.add(self.stripes[i])
 			time.sleep(0.1 * random.randint(1, 3))
 		
 		# 정해진 시간이 되면 ft.ThemeMode를 서로 바꾼다
 		seconds_left = self.seconds
 		while (seconds_left > 0) and (self.running == True):
-			time.sleep(1)
-			seconds_left -= 1
-			if seconds_left == 0:
+			time.sleep(DAY_NIGHT_STEP)
+			seconds_left -= DAY_NIGHT_STEP
+
+			if seconds_left <= 0:
 				self.page.theme_mode = ft.ThemeMode.DARK if self.page.theme_mode == ft.ThemeMode.LIGHT else ft.ThemeMode.LIGHT
 				self.page.update()
 				seconds_left = self.seconds
@@ -288,7 +292,7 @@ def main(page: ft.Page):
 	# 초기화 시작
 	choice = None
 	reason = None
-	preset_reasons = ["", "신규, 저당 등 업무대상자 확인", "이전, 변경 등 업무대상자 확인", "압류, 말소 등 업무대상자 확인", "소유자 확인", ""]
+	preset_reasons = ["", "신규 저당 등 업무대상자 확인", "이전 변경 등 업무대상자 확인", "압류 말소 등 업무대상자 확인", "소유자 확인", ""]
 
 	setting_autosave = True					# 설정 자동 저장 여부
 	setting_minimize = True					# 작동 후 최소화 여부
@@ -437,7 +441,8 @@ def main(page: ft.Page):
 		nonlocal choice
 		choice = int(e.control.value)
 		#print(r2_container.content.value)
-		page.snack_bar = ft.SnackBar(ft.Row([ft.Text(f"{preset_reasons[choice]}", size=13, color=ft.colors.YELLOW), ft.Text("을 선택하셨습니다", size=13)], spacing=0))
+		colors = [ft.colors.WHITE, ft.colors.LIGHT_BLUE_500, ft.colors.LIGHT_GREEN_600, ft.colors.DEEP_PURPLE_300, ft.colors.PINK_200]
+		page.snack_bar = ft.SnackBar(ft.Row([ft.Text(f"{preset_reasons[choice]}", size=12.5, color=colors[choice], weight=ft.FontWeight.BOLD), ft.Text("을 선택하셨습니다", size=12.5)], spacing=0))
 		page.snack_bar.open = True
 		page.update()
 	
@@ -450,10 +455,10 @@ def main(page: ft.Page):
 
 		if preset_reasons[5].strip() == "":			# 입력했다가 모두 지웠거나, 공백문자만 입력한 경우 ==> "직접 입력"으로 바꾸기
 			r3_container.content.value = ""
-			page.snack_bar = ft.SnackBar(ft.Row([ft.Text(f"직접 입력", size=13, color=ft.colors.YELLOW), ft.Text("을 선택하셨습니다", size=13)], spacing=0))
+			page.snack_bar = ft.SnackBar(ft.Row([ft.Text(f"직접 입력", size=12.5, color=ft.colors.YELLOW), ft.Text("을 선택하셨습니다", size=12.5)], spacing=0))
 		else:
 			r3_container.content.value = preset_reasons[5]
-			page.snack_bar = ft.SnackBar(ft.Row([ft.Text(f"{preset_reasons[choice]}", size=13, color=ft.colors.YELLOW), ft.Text("을(를) 선택하셨습니다", size=13)], spacing=0, wrap=True))
+			page.snack_bar = ft.SnackBar(ft.Row([ft.Text(f"{preset_reasons[choice]}", size=12.5, color=ft.colors.YELLOW), ft.Text("을(를) 선택하셨습니다", size=12.5)], spacing=0, wrap=True))
 		page.snack_bar.open = True
 		page.update()
 
@@ -488,7 +493,6 @@ def main(page: ft.Page):
 
 		# 자동차/이륜차 시스템 실행되지 않은 경우
 		check_car_system()
-
 		def dlg_alert_carsystem(e: ft.ControlEvent):
 			dlg_alert_carsystem.open = False
 			page.update()
@@ -497,12 +501,17 @@ def main(page: ft.Page):
 			dlg_alert_carsystem = ft.AlertDialog(
 				modal=True,
 				title=ft.Row([
-					ft.Icon(ft.icons.WARNING_ROUNDED, color=ft.colors.AMBER_600, size=30),
-					ft.Text("실행 전에...", size=20),
-				], spacing=5),
-				#content_padding=ft.padding.only(left=20, right=20, top=25, bottom=25),
-				content=ft.Text("자동차 관리정보시스템을\n먼저 실행해주세요.", size=15),
+					ft.Icon(ft.icons.WARNING_ROUNDED, color=ft.colors.AMBER_600, size=35),
+					ft.Text("실행 전에", size=25),
+					ft.Icon(ft.icons.WARNING_ROUNDED, color=ft.colors.AMBER_600, size=35),
+				], spacing=5, alignment=ft.MainAxisAlignment.START),
+				title_padding=ft.padding.only(top=24, left=24, right=24, bottom=0),
+
+				content=ft.Text("자동차 관리정보시스템을\n먼저 실행해주세요.", size=16),
+				content_padding=ft.padding.only(top=20, left=24, right=24, bottom=24),
+
 				actions=[ft.TextButton("돌아가기", on_click=dlg_alert_carsystem)],
+				actions_padding=ft.padding.only(top=0, left=24, right=24, bottom=20),
 				actions_alignment=ft.MainAxisAlignment.END,
 			)
 			page.dialog = dlg_alert_carsystem
@@ -520,11 +529,17 @@ def main(page: ft.Page):
 			dlg_alert_noneselected = ft.AlertDialog(
 				modal=True,
 				title=ft.Row([
-					ft.Icon(ft.icons.WARNING_ROUNDED, color=ft.colors.AMBER_600, size=30),
-					ft.Text("조회사유는...", size=20, weight=ft.FontWeight.BOLD),
-				], spacing=5),
+					ft.Icon(ft.icons.WARNING_ROUNDED, color=ft.colors.AMBER_600, size=35),
+					ft.Text("조회사유는", size=25, weight=ft.FontWeight.BOLD),
+					ft.Icon(ft.icons.WARNING_ROUNDED, color=ft.colors.AMBER_600, size=35),
+				], spacing=0, alignment=ft.MainAxisAlignment.START),
+				title_padding=ft.padding.only(top=24, left=24, right=24, bottom=0),
+
 				content=ft.Text("필수 입력 사항입니다.\n다시 선택해주세요.", size=16),
+				content_padding=ft.padding.only(top=20, left=24, right=24, bottom=24),
+
 				actions=[ft.TextButton("돌아가기", on_click=dlg_alert_noneselected_close)],
+				actions_padding=ft.padding.only(top=0, left=24, right=24, bottom=20),
 				actions_alignment=ft.MainAxisAlignment.END,
 			)
 			page.dialog = dlg_alert_noneselected
@@ -544,12 +559,18 @@ def main(page: ft.Page):
 				dlg_alert_short = ft.AlertDialog(
 					modal=True,
 					title=ft.Row([
-						ft.Icon(ft.icons.WARNING_ROUNDED, color=ft.colors.AMBER_600, size=30),
-						ft.Text("조회사유는...", size=20, weight=ft.FontWeight.BOLD),
-					], spacing=5),
+						ft.Icon(ft.icons.WARNING_ROUNDED, color=ft.colors.AMBER_600, size=35),
+						ft.Text("조회사유는", size=25, weight=ft.FontWeight.BOLD),
+						ft.Icon(ft.icons.WARNING_ROUNDED, color=ft.colors.AMBER_600, size=35),
+					], spacing=0, alignment=ft.MainAxisAlignment.START),
+					title_padding=ft.padding.only(top=24, left=24, right=24, bottom=0),
+
 					content=ft.Text("4글자 이상이어야 합니다.\n다시 입력해주세요.", size=16),
+					content_padding=ft.padding.only(top=20, left=24, right=24, bottom=24),
+
 					actions=[ft.TextButton("돌아가기", on_click=dlg_alert_short_close)],
 					actions_alignment=ft.MainAxisAlignment.END,
+					actions_padding=ft.padding.only(top=0, left=24, right=24, bottom=20),
 				)
 				page.dialog = dlg_alert_short
 				dlg_alert_short.open = True
@@ -611,7 +632,7 @@ def main(page: ft.Page):
 		page.appbar = None
 		page.clean()
 		page.update()
-		page.add(Timer(2, page))
+		page.add(Timer(DAY_NIGHT_PERIOD, page))
 		page.overlay.append(ft.Container(content=ft.Text("작동 중", size=80, weight=ft.FontWeight.BOLD), alignment=ft.alignment.center))
 
 		# 쓰레드 시작
@@ -669,14 +690,14 @@ def main(page: ft.Page):
 	r2_container = ft.Container(
 		content = ft.RadioGroup(
 			content=ft.Column([
-				ft.Radio(value="1", label="신규, 저당 등 업무대상자 확인", fill_color=ft.colors.LIGHT_BLUE_500, height=30),
-				ft.Radio(value="2", label="이전, 변경 등 업무대상자 확인", fill_color=ft.colors.LIGHT_GREEN_600, height=30),
-				ft.Radio(value="3", label="압류, 말소 등 업무대상자 확인", fill_color=ft.colors.DEEP_PURPLE_300, height=30),
+				ft.Radio(value="1", label="신규 저당 등 업무대상자 확인", fill_color=ft.colors.LIGHT_BLUE_500, height=30),
+				ft.Radio(value="2", label="이전 변경 등 업무대상자 확인", fill_color=ft.colors.LIGHT_GREEN_600, height=30),
+				ft.Radio(value="3", label="압류 말소 등 업무대상자 확인", fill_color=ft.colors.DEEP_PURPLE_300, height=30),
 				ft.Radio(value="4", label="소유자 확인", fill_color=ft.colors.PINK_200, height=30)],
 				spacing=0, alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
 			value=choice, on_change=radiogroup_changed),
 		margin = 0,
-		padding = ft.padding.only(left=43, right=43, top=10, bottom=5),
+		padding = ft.padding.only(left=45, right=45, top=10, bottom=5),
 		alignment=ft.alignment.center
 	)
 
@@ -684,8 +705,8 @@ def main(page: ft.Page):
 	# Part3. 직접입력 부분
 	# r3_container.content.value = "이전 사유 입력"
 	r3_container = ft.Container(
-		content = ft.TextField(label='직접 입력', width=230, text_size=14, bgcolor="#fef0c8", focused_bgcolor=ft.colors.AMBER_200, border=ft.InputBorder.OUTLINE, border_color=ft.colors.AMBER_500, border_radius=5, filled=True, dense=True,
-			hint_text="(입력하신 내용은 자동으로 저장됩니다)", hint_style=ft.TextStyle(size=11, color=ft.colors.TEAL_300),
+		content = ft.TextField(label='직접 입력', width=230, text_size=13, bgcolor="#fef0c8", focused_bgcolor=ft.colors.AMBER_200, border=ft.InputBorder.OUTLINE, border_color=ft.colors.AMBER_500, border_radius=5, filled=True, dense=True,
+			hint_text="(입력하신 내용은 자동으로 저장됩니다)", hint_style=ft.TextStyle(size=11.5, color=ft.colors.WHITE70),
 			value=preset_reasons[5],
 			on_focus=textfield_focused, 
 			on_change=textfield_changed
@@ -714,7 +735,7 @@ def main(page: ft.Page):
 		#border=ft.border.all(width=1, color=ft.colors.YELLOW),
 		border_radius=5,
 		ink = True,
-		margin = ft.margin.only(left=40, right=40, top=10, bottom=10),
+		margin = ft.margin.only(left=40, right=40, top=10, bottom=5),
 		expand=True,
 		
 		scale=ft.transform.Scale(scale=1),
@@ -730,7 +751,7 @@ def main(page: ft.Page):
 	r5_container = ft.Container(
 		content=ft.Text("Developed by 김재형, 2022-2023", size=12),
 		alignment=ft.alignment.center_right,
-		margin = ft.margin.only(left=40, right=40, top=0, bottom=10),
+		margin = ft.margin.only(left=40, right=40, top=0, bottom=20),
 	)
 
 	page.appbar = r1_appbar
