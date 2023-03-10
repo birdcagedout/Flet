@@ -697,7 +697,7 @@ def main(page: ft.Page):
 				spacing=0, alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
 			value=choice, on_change=radiogroup_changed),
 		margin = 0,
-		padding = ft.padding.only(left=45, right=45, top=10, bottom=5),
+		padding = ft.padding.only(left=45, right=45, top=9, bottom=5),
 		alignment=ft.alignment.center
 	)
 
@@ -705,7 +705,7 @@ def main(page: ft.Page):
 	# Part3. 직접입력 부분
 	# r3_container.content.value = "이전 사유 입력"
 	r3_container = ft.Container(
-		content = ft.TextField(label='직접 입력', width=230, text_size=13, bgcolor="#fef0c8", focused_bgcolor=ft.colors.AMBER_200, border=ft.InputBorder.OUTLINE, border_color=ft.colors.AMBER_500, border_radius=5, filled=True, dense=True,
+		content = ft.TextField(label='직접 입력', label_style=ft.TextStyle(size=14), width=230, text_size=13, bgcolor="#fef0c8", focused_bgcolor=ft.colors.AMBER_200, border=ft.InputBorder.OUTLINE, border_color=ft.colors.AMBER_500, border_radius=5, filled=True, dense=True,
 			hint_text="(입력하신 내용은 자동으로 저장됩니다)", hint_style=ft.TextStyle(size=11.5, color=ft.colors.WHITE70),
 			value=preset_reasons[5],
 			on_focus=textfield_focused, 
@@ -735,7 +735,7 @@ def main(page: ft.Page):
 		#border=ft.border.all(width=1, color=ft.colors.YELLOW),
 		border_radius=5,
 		ink = True,
-		margin = ft.margin.only(left=40, right=40, top=10, bottom=5),
+		margin = ft.margin.only(left=40, right=40, top=7, bottom=3),
 		expand=True,
 		
 		scale=ft.transform.Scale(scale=1),
@@ -751,7 +751,7 @@ def main(page: ft.Page):
 	r5_container = ft.Container(
 		content=ft.Text("Developed by 김재형, 2022-2023", size=12),
 		alignment=ft.alignment.center_right,
-		margin = ft.margin.only(left=40, right=40, top=0, bottom=20),
+		margin = ft.margin.only(left=40, right=40, top=3, bottom=20),
 	)
 
 	page.appbar = r1_appbar
