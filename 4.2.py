@@ -109,15 +109,15 @@ class Timer(ft.UserControl):
 		self.page.theme_mode = ft.ThemeMode.LIGHT
 		self.page.update()
 
-
 		self.vertical_space_left = 381							# 주의: WIN_HEIGHT = 420일 때 380.8 ==> 380이면 1px 모자람
 		self.stripes = []
 		self.heights = []
 		self.running = False
+		random.seed()
 
 	def did_mount(self):
-		self.th = Thread(target=self.update_timer, args=(), daemon=True)
-		self.th.start()
+		self.thread = Thread(target=self.update_timer, args=(), daemon=True)
+		self.thread.start()
 		self.running = True
 
 	def will_unmount(self):
@@ -155,7 +155,7 @@ class Timer(ft.UserControl):
 		while (seconds_left > 0) and (self.running == True):
 			time.sleep(DAY_NIGHT_STEP)
 			seconds_left -= DAY_NIGHT_STEP
-
+			
 			if seconds_left <= 0:
 				self.page.theme_mode = ft.ThemeMode.DARK if self.page.theme_mode == ft.ThemeMode.LIGHT else ft.ThemeMode.LIGHT
 				self.page.update()
@@ -455,10 +455,10 @@ def main(page: ft.Page):
 
 		if preset_reasons[5].strip() == "":			# 입력했다가 모두 지웠거나, 공백문자만 입력한 경우 ==> "직접 입력"으로 바꾸기
 			r3_container.content.value = ""
-			page.snack_bar = ft.SnackBar(ft.Row([ft.Text(f"직접 입력", size=12.5, color=ft.colors.YELLOW), ft.Text("을 선택하셨습니다", size=12.5)], spacing=0))
+			page.snack_bar = ft.SnackBar(ft.Row([ft.Text(f"직접 입력", size=12.5, color=ft.colors.YELLOW, weight=ft.FontWeight.BOLD), ft.Text("을 선택하셨습니다", size=12.5)], spacing=0))
 		else:
 			r3_container.content.value = preset_reasons[5]
-			page.snack_bar = ft.SnackBar(ft.Row([ft.Text(f"{preset_reasons[choice]}", size=12.5, color=ft.colors.YELLOW), ft.Text("을(를) 선택하셨습니다", size=12.5)], spacing=0, wrap=True))
+			page.snack_bar = ft.SnackBar(ft.Row([ft.Text(f"{preset_reasons[choice]}", size=12.5, color=ft.colors.YELLOW, weight=ft.FontWeight.BOLD), ft.Text("을(를) 선택하셨습니다", size=12.5)], spacing=0, wrap=True))
 		page.snack_bar.open = True
 		page.update()
 
@@ -467,11 +467,6 @@ def main(page: ft.Page):
 	def textfield_changed(e: ft.ControlEvent):
 		preset_reasons[5] = e.control.value.strip()
 		#print(preset_reasons)
-
-
-	# Textfield에서 Enter칠 때 이벤드 핸들러
-	#def textfield_enter(e: ft.ControlEvent):
-	#	start_btn( r4_container.content.contol)
 
 
 	#========================================================================================================
@@ -648,7 +643,7 @@ def main(page: ft.Page):
 
 	# Part1. 최상단 AppBar (조회사유를 선택하세요)
 	r1_appbar = ft.AppBar(
-		leading=ft.Icon(ft.icons.ANDROID_OUTLINED, size=80, color=ft.colors.GREEN_600, opacity=0.8),
+		leading=ft.Icon(ft.icons.ANDROID_OUTLINED, size=80, color=ft.colors.GREEN_600, opacity=1),
 		leading_width=40,
 		
 		title=ft.Column(
@@ -708,7 +703,7 @@ def main(page: ft.Page):
 		content = ft.TextField(label='직접 입력', label_style=ft.TextStyle(size=14), width=230, text_size=13, bgcolor="#fef0c8", focused_bgcolor=ft.colors.AMBER_200, border=ft.InputBorder.OUTLINE, border_color=ft.colors.AMBER_500, border_radius=5, filled=True, dense=True,
 			hint_text="(입력하신 내용은 자동으로 저장됩니다)", hint_style=ft.TextStyle(size=11.5, color=ft.colors.WHITE70),
 			value=preset_reasons[5],
-			on_focus=textfield_focused, 
+			on_focus=textfield_focused,
 			on_change=textfield_changed
 		),
 		padding = ft.padding.only(left=40, right=40, top=0, bottom=5),
