@@ -30,14 +30,43 @@ def winEnumHandler(hWnd, ctx):
 		#	k.press(pynputKeyboard.Key.enter)
 		#	k.release(pynputKeyboard.Key.enter)
 
-		if title == '알림확인' or title =='오류':
+		#if title == '알림확인' or title =='오류':
+		if title == '다운로드 사유 입력':
 			global target_hWnd
 			target_hWnd = hWnd
+
+
+
 
 def childEnumHandler(hWnd, ctx):
 	child_hWnd.append(hWnd)
 	child_title = win32gui.GetWindowText(hWnd)
 	child_title_list.append(child_title)
+
+	if child_title == "저장":
+		rect = win32gui.GetWindowRect(hWnd)
+		x = rect[0]
+		y = rect[1]
+		w = rect[2] - x
+		h = rect[3] - y
+		pos_x = x + int(w/2)
+		pos_y = y + int(h/2)
+		m.position = (pos_x, pos_y)
+		m.click(pynputMouse.Button.left, 1)
+	
+	
+	if child_title == "확인":
+		rect = win32gui.GetWindowRect(hWnd)
+		x = rect[0]
+		y = rect[1]
+		w = rect[2] - x
+		h = rect[3] - y
+		pos_x = x + int(w/2)
+		pos_y = y + int(h/2)
+		m.position = (pos_x, pos_y)
+		m.click(pynputMouse.Button.left, 1)
+
+
 	
 	#buf = " " * 255
 	#buf_len = win32gui.SendMessage(hWnd, win32con.WM_GETTEXT, 255, buf)
@@ -45,6 +74,8 @@ def childEnumHandler(hWnd, ctx):
 	#child_title_list.append(child_title)
 	
 
+# 엑셀 다운로드: '다운로드 사유 입력' (엔터로 창 안 닫힘)
+# 	
 
 while True:
 	win32gui.EnumWindows(winEnumHandler, None)
