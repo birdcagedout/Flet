@@ -10,7 +10,9 @@ k = pynputKeyboard.Controller()
 title_list = []
 target_hWnd = None
 child_hWnd = [] 
+child_class_list = []
 child_title_list = []
+
 
 def winEnumHandler(hWnd, ctx):
 	if win32gui.IsWindowVisible(hWnd):
@@ -30,8 +32,8 @@ def winEnumHandler(hWnd, ctx):
 		#	k.press(pynputKeyboard.Key.enter)
 		#	k.release(pynputKeyboard.Key.enter)
 
-		#if title == '알림확인' or title =='오류':
-		if title == '다운로드 사유 입력':
+		if title == '알림확인' or title =='오류':
+		#if title == '다운로드 사유 입력':
 			global target_hWnd
 			target_hWnd = hWnd
 
@@ -42,29 +44,31 @@ def childEnumHandler(hWnd, ctx):
 	child_hWnd.append(hWnd)
 	child_title = win32gui.GetWindowText(hWnd)
 	child_title_list.append(child_title)
+	child_class = win32gui.GetClassName(hWnd)
+	child_class_list.append(child_class)
 
-	if child_title == "저장":
-		rect = win32gui.GetWindowRect(hWnd)
-		x = rect[0]
-		y = rect[1]
-		w = rect[2] - x
-		h = rect[3] - y
-		pos_x = x + int(w/2)
-		pos_y = y + int(h/2)
-		m.position = (pos_x, pos_y)
-		m.click(pynputMouse.Button.left, 1)
+#	if child_title == "저장":
+#		rect = win32gui.GetWindowRect(hWnd)
+#		x = rect[0]
+#		y = rect[1]
+#		w = rect[2] - x
+#		h = rect[3] - y
+#		pos_x = x + int(w/2)
+#		pos_y = y + int(h/2)
+#		m.position = (pos_x, pos_y)
+#		m.click(pynputMouse.Button.left, 1)
 	
 	
-	if child_title == "확인":
-		rect = win32gui.GetWindowRect(hWnd)
-		x = rect[0]
-		y = rect[1]
-		w = rect[2] - x
-		h = rect[3] - y
-		pos_x = x + int(w/2)
-		pos_y = y + int(h/2)
-		m.position = (pos_x, pos_y)
-		m.click(pynputMouse.Button.left, 1)
+#	if child_title == "확인":
+#		rect = win32gui.GetWindowRect(hWnd)
+#		x = rect[0]
+#		y = rect[1]
+#		w = rect[2] - x
+#		h = rect[3] - y
+#		pos_x = x + int(w/2)
+#		pos_y = y + int(h/2)
+#		m.position = (pos_x, pos_y)
+#		m.click(pynputMouse.Button.left, 1)
 
 
 	
@@ -87,7 +91,7 @@ while True:
 		win32gui.EnumChildWindows(target_hWnd, childEnumHandler, None)
 	
 	for i in range(len(child_hWnd)):
-		print(f"[{i}] {child_hWnd[i]}: {child_title_list[i]}")
+		print(f"[{i}] HWND: {child_hWnd[i]}\tCLASSNAME: {child_class_list[i]}\tTITLE: {child_title_list[i]}")
 	print('==============================================')
 	child_hWnd = []
 	child_title_list = []
