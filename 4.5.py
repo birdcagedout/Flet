@@ -18,7 +18,7 @@ VER = VER_MAJOR + "." + VER_MINOR
 
 
 WIN_WIDTH = 350
-WIN_HEIGHT = 420
+WIN_HEIGHT = 430
 
 
 HOME_DIR = r"C:\SickNTired"
@@ -109,7 +109,8 @@ class Timer(ft.UserControl):
 		self.page.theme_mode = ft.ThemeMode.LIGHT
 		self.page.update()
 
-		self.vertical_space_left = 381							# 주의: WIN_HEIGHT = 420일 때 380.8 ==> 380이면 1px 모자람
+		#print(page.height)
+		self.vertical_space_left = 391							# 주의: WIN_HEIGHT = 420일 때 380.8(=381), 430일 때 391.0
 		self.stripes = []
 		self.heights = []
 		self.running = False
@@ -137,7 +138,7 @@ class Timer(ft.UserControl):
 			
 			# 가로줄의 개수가 color 개수보다 크면 처음부터 다시 가로줄 배정
 			if self.vertical_space_left == 0 and len(self.heights) > len(self.colors):
-				self.vertical_space_left = 381
+				self.vertical_space_left = 391
 				self.heights.clear()
 				continue
 		
@@ -170,10 +171,11 @@ class Timer(ft.UserControl):
 
 class WatcherThread(Thread):
 	# 초기화
-	def __init__(self, reason="", delay=SUPERSPEED_DELAY):
+	def __init__(self, reason="", delay=SUPERSPEED_DELAY, include_download=False):
 		super(WatcherThread, self).__init__(daemon=True)
 		self.reason = reason
 		self.delay = delay
+		self.include_download = include_download
 		self.m = pynputMouse.Controller()
 		self.k = pynputKeyboard.Controller()
 
@@ -186,7 +188,12 @@ class WatcherThread(Thread):
 		def winEnumHandler(hWnd, ctx):
 			if win32gui.IsWindowVisible(hWnd):
 				title = win32gui.GetWindowText(hWnd)
-				if ("조회 사유 입력" in title) or ("개인정보 공개 열람사유입력" in title) or ('다운로드 사유 입력' in title):
+				if ("조회 사유 입력" in title) or ("개인정보 공개 열람사유입력" in title):
+					# weird solution : SetForegroundWindow 전에 alt키 눌러야 동작한다.
+					self.k.press(pynputKeyboard.Key.alt)
+					self.k.release(pynputKeyboard.Key.alt)
+					win32gui.SetForegroundWindow(hWnd)
+				if (self.include_download == True) and ('다운로드 사유 입력' in title):
 					# weird solution : SetForegroundWindow 전에 alt키 눌러야 동작한다.
 					self.k.press(pynputKeyboard.Key.alt)
 					self.k.release(pynputKeyboard.Key.alt)
@@ -207,8 +214,8 @@ class WatcherThread(Thread):
 				time.sleep(0.1)
 				continue
 
-			# 둘 다 아닌 경우
-			if (title != "조회 사유 입력") and (title != "개인정보 공개 열람사유입력") and (title != '다운로드 사유 입력'):
+			# 셋 다 아닌 경우
+			if (title != "조회 사유 입력") and (title != "개인정보 공개 열람사유입력") and ((self.include_download == False) or (title != '다운로드 사유 입력')):
 				time.sleep(0.1)
 				continue
 
@@ -234,7 +241,7 @@ class WatcherThread(Thread):
 			time.sleep(0.1)
 			
 			# 다운로드 창인 경우
-			if title == '다운로드 사유 입력':
+			if (self.include_download == True) and (title == '다운로드 사유 입력'):
 				self.k.press(pynputKeyboard.Key.tab)
 				self.k.release(pynputKeyboard.Key.tab)
 				time.sleep(0.05)
@@ -245,7 +252,7 @@ class WatcherThread(Thread):
 				self.k.release(pynputKeyboard.Key.space)
 			
 			# 조회사유입력 or 개인정보 공개 열람사유입력
-			else:
+			if (title == "조회 사유 입력") or (title == "개인정보 공개 열람사유입력"):
 				self.k.press(pynputKeyboard.Key.enter)
 				self.k.release(pynputKeyboard.Key.enter)
 
@@ -279,7 +286,7 @@ class WatcherThread(Thread):
 				file_handler = logging.FileHandler(LOG_FILE)
 				file_handler.setFormatter(formatter)
 				logger.addHandler(file_handler)
-				logger.debug(f"[에러] 창 안닫힘: x={x}, y={y}, w={w}, h={h} ==> x2={x2}, y2={y2}, w2={w2}, h2={h2}\n")
+				logger.error(f"[에러] 창 안닫힘: x={x}, y={y}, w={w}, h={h} ==> x2={x2}, y2={y2}, w2={w2}, h2={h2}\n")
 			# 확인 끝
 			###############################################################################
 
@@ -313,7 +320,7 @@ def main(page: ft.Page):
 	setting_autosave = True					# 설정 자동 저장 여부
 	setting_minimize = True					# 작동 후 최소화 여부
 	setting_transparency = 0.0				# 투명도 값
-	setting_superspeed = True 				# 슈퍼스피드 모드
+	setting_include_download = False 		# 자료 다운로드 사유입력 창 포함 여부
 	setting_delay = SUPERSPEED_DELAY		# 작동 지연값(슈퍼스피드 모드 ON=0.1, OFF=0.35)
 
 	car_system_launched = False
@@ -344,11 +351,17 @@ def main(page: ft.Page):
 				preset_reasons[5] = setting['setting_reason']
 
 				try:
-					setting_superspeed = setting['setting_superspeed']
-					setting_delay = SUPERSPEED_DELAY if setting_superspeed == True else NORMALSPEED_DELAY
+					setting_include_download = setting['setting_include_download']
 				except KeyError:
-					setting_superspeed = True
+					setting_include_download = False
 					setting_delay = SUPERSPEED_DELAY
+
+					# 로그파일 지우기
+					try:
+						os.remove(LOG_FILE)
+					except Exception as e:
+						#print(f"오류 발생: {e}")
+						pass
 	# 초기화 끝
 	#=====================================================================================================================================================
 
@@ -382,16 +395,13 @@ def main(page: ft.Page):
 			# print(f"e.control.value: {e.control.value}, setting_transparency: {setting_transparency}, page.window_opacity: {page.window_opacity}")
 			page.update()
 
-		# 설정4 - 슈퍼스피드 모드 (checkbox)
+		# 설정4 - 자료 다운로드 사유입력 창 포함 여부 (checkbox)
 		def checkbox_delay(e: ft.ControlEvent):
-			nonlocal setting_superspeed
-			nonlocal setting_delay
+			nonlocal setting_include_download
 			if e.control.value == True:
-				setting_superspeed = True
-				setting_delay = SUPERSPEED_DELAY
+				setting_include_download = True
 			else:
-				setting_superspeed = False
-				setting_delay = NORMALSPEED_DELAY
+				setting_include_download = False
 		
 		# 확인 버튼 
 		def dlg_ok(e: ft.ControlEvent):
@@ -423,7 +433,7 @@ def main(page: ft.Page):
 	       					], spacing=0, expand=True, alignment=ft.MainAxisAlignment.SPACE_BETWEEN), padding=ft.padding.only(top=0, bottom=-5),
 							),
 						    ft.Container(content=ft.Row([
-								ft.Checkbox(label="슈퍼스피드 모드", value=setting_superspeed, tooltip="슈퍼스피드 모드: 동작지연 0.1초\n노멀스피드 모드: 동작지연 0.3초", on_change=checkbox_delay)
+								ft.Checkbox(label="자료 다운로드 창 포함", value=setting_include_download, tooltip="엑셀 자료 다운로드 사유도 자동입력", on_change=checkbox_delay)
 								#ft.Text("  동작지연", text_align=ft.TextAlign.START, tooltip="똥컴일수록 큰값으로 설정", expand=5),
 								#ft.Slider(min=0.3, max=0.45, divisions=3, label="{value}", value=setting_delay, on_change_start=slider_delay, on_change=slider_delay, expand=10),
 	       					], spacing=0, expand=True, alignment=ft.MainAxisAlignment.SPACE_BETWEEN), padding=ft.padding.only(top=0, bottom=0),
@@ -609,7 +619,7 @@ def main(page: ft.Page):
 							'setting_autosave': setting_autosave,
 							'setting_minimize': setting_minimize, 
 							'setting_transparency': setting_transparency,
-							'setting_superspeed': setting_superspeed,
+							'setting_include_download': setting_include_download,
 							'setting_delay': setting_delay,
 							'setting_choice': choice, 
 							'setting_reason': preset_reasons[5]}
@@ -647,7 +657,7 @@ def main(page: ft.Page):
 		page.overlay.append(ft.Container(content=ft.Text("작동 중", size=80, weight=ft.FontWeight.BOLD), alignment=ft.alignment.center))
 
 		# 쓰레드 시작
-		worker = WatcherThread(reason=reason, delay=setting_delay)
+		worker = WatcherThread(reason=reason, delay=setting_delay, include_download=setting_include_download)
 		worker.start()
 
 		# 작동 후 최소화
@@ -762,7 +772,7 @@ def main(page: ft.Page):
 	r5_container = ft.Container(
 		content=ft.Text("Developed by 김재형, 2022-2023", size=12),
 		alignment=ft.alignment.center_right,
-		margin = ft.margin.only(left=40, right=40, top=3, bottom=20),
+		margin = ft.margin.only(left=40, right=40, top=5, bottom=30),
 	)
 
 	page.appbar = r1_appbar
